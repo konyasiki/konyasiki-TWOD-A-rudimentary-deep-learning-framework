@@ -1,5 +1,21 @@
 # TWOD-A-rudimentary-deep-learning-framework
-The algorithm ideas for some tensor operations in this project are included inProject Ideas & Insights.md
+
+## How to initialize a tensor?
+```ts
+let tensor = new Tensor([[1.0,2.0],[0.3,3.0]]);//The default data type is Float64Array
+```
+#### tip:
+You can call 👇 before initializing the tensor.This way you can use a memory pool to avoid allocating memory frequently.
+```ts
+Tensor.create_pool();
+```
+But after creating the memory pool, please destroy it using 👇 to prevent memory leaks.
+```ts
+Tensor.destory_pool();
+```
+
+## The algorithm ideas for some tensor operations in this project are included inProject Ideas & Insights.md
+
 ### 张量广播
 ```C
 void cpu_tensor_broadcasted_add(Tensor *tensor_one,Tensor *tensor_two,float *data,int *broadcasted_shape,int *broadcasted_size);
@@ -22,7 +38,7 @@ a + b(broadcasted) =  [[1,2],
                        [2,3],
                        [3,4]]
 ```
-
+![广播条件](./tensor_broadcasted.png)
 ```
 从最右边的维度开始比较，若是相等则可以直接匹配
 其中一个为1也可以=>直接拓展到最大维度
