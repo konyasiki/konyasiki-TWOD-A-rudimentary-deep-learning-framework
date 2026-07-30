@@ -1,6 +1,4 @@
-# TWOD-A-rudimentary-deep-learning-framework
-The algorithm ideas for some tensor operations in this project are included inProject Ideas & Insights.md
-### 张量广播
+# 张量广播
 ```C
 void cpu_tensor_broadcasted_add(Tensor *tensor_one,Tensor *tensor_two,float *data,int *broadcasted_shape,int *broadcasted_size);
 ```
@@ -22,7 +20,7 @@ a + b(broadcasted) =  [[1,2],
                        [2,3],
                        [3,4]]
 ```
-
+![广播条件](./tensor_broadcasted.png)
 ```
 从最右边的维度开始比较，若是相等则可以直接匹配
 其中一个为1也可以=>直接拓展到最大维度
@@ -78,3 +76,65 @@ void cpu_tensor_broadcasted_add(Tensor *tensor_one,Tensor *tensor_two,float *dat
     free(strides_two);
 }
 ```
+##### 到此张量的广播结束
+# 张量的转置(transpose)
+### 本质上是通过更改步长来更新元素位置
+```c
+void cpu_tensor_transpose_axes(Tensor *tensor,float *data,int *axis){
+    int *shape_transpose = (int *)malloc(tensor->dimension * sizeof(int));
+    int *strides = (int *)malloc(tensor->dimension * sizeof(int));
+    for(int i = 0;i < tensor->dimension - 1;i++){
+        shape_transpose[i] = tensor->shape[axis[i]];//转换后轴的顺序
+        //通过对传入数组遍历先更改形状
+    }
+    int stride = 1;
+    for(int i = tensor->dimension - 1; i >= 0 ;i--){
+        strides[i] = stride;
+        stride *= shape_transpose[i];//已转换的步长
+    }
+    for(int i = 0;i < tensor->size;i++){//接下来与广播类似,计算转换后对应原本索引为i的元素转换后的线性索引
+        int linear_index = i;
+        int index = 0;
+        for(int j = tensor->dimension - 1;j >=0 ;i--){
+            int pos = linear_index % tensor->shape[i];
+            linear_index /= tensor->shape[i];
+            index += pos * strides[axis[i]];//乘于对应的步长
+        }
+        data[index] = tensor->data[i];
+    }
+    free(strides);
+    free(shape_transpose);
+}
+```
+# 沿维度求和(sum)
+### 与broadcast互为反向传播函数
+```c
+void cpu_tensor_sum(Tensor *tensor,float *data,int size,int *shape,int axis){
+    if(axis == -1){
+        //sum all data
+        float sum = 0.0;
+        for(int i = 0;i < tensor->size;i++){
+            sum += tensor->data[i];
+        }
+        *data = sum;
+    }else{
+        if(axis < 0 || axis >= tensor->dimension){
+            printf("Invalid axis");
+            return;
+        }
+        int axis_stride = tensor->strides[axis];//需要相加的轴的步长
+        for(int i = 0;i < tensor->shape[axis];i++){
+            for(int j = 0;j < size;j++){
+                int index = 0;
+                int remainder = j;
+                for(int k = tensor->dimension - 2;k >= 0;k--){//sum的形状是dim - 1 但是索引是减2
+                    index +=(remainder % shape[k]) * tensor->strides[k < axis ? k : k + 1];//计算线性索引那一套,因为少了一个维度所以不用担心strides
+                    remainder /= shape[k];
+                }
+                data[j] += tensor->data[index + i * axis_stride];
+            }
+        }
+    }
+}
+```
+# 张量乘法
