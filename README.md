@@ -1,8 +1,13 @@
 # TWOD-A-rudimentary-deep-learning-framework
-
+If you think it's written well, give it some stars.
+🤭
 ## How to initialize a tensor?
 ```ts
 let tensor = new Tensor([[1.0,2.0],[0.3,3.0]]);//The default data type is Float64Array
+//or
+let data = new Float64Array([[1.0,2.0],[0.3,3.0]]);
+let shape = new Int32Array([2,2]);
+let tensor = new Tensor({data:data,shape:shape});//Highly not recommended ⚠
 ```
 #### tip:
 You can call 👇 before initializing the tensor.This way you can use a memory pool to avoid allocating memory frequently.
@@ -13,6 +18,11 @@ But after creating the memory pool, please destroy it using 👇 to prevent memo
 ```ts
 Tensor.destory_pool();
 ```
+## Next goal
+[1] Optimize code style
+
+[2] Try using a faster algorithm
+
 
 ## The algorithm ideas for some tensor operations in this project are included inProject Ideas & Insights.md
 
