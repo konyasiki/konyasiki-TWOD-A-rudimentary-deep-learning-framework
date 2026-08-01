@@ -1,19 +1,6 @@
 {
-  "name": "twod",
-  "version": "1.0.0",
-  "description": "a deeplearning framework",
-  "main": "twod.ts",
-  "scripts": {
-    "test": "node twod.ts"
-  },
-  "author": "爱吉-yasiki",
-  "license": "ISC",
-  "dependencies": {
-    "node-gyp": "^12.4.0",
-    "tensor_c":"./node_modules/tensor_c"
-  },
-  "devDependencies": {
-    "@types/node": "^26.1.2"
-  },
-  "type": "module"
+    "name": "tensor_c",
+    "main": "./tensor.js",
+    "types": "../@types/tensor_c/index.d.ts",
+    "version": "^0.0.1"
 }
