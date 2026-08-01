@@ -3,18 +3,46 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "MemoryPool.h"
+#include <string.h>
 
 typedef struct array_with_length{
     void *data;
     size_t length;
 }awl;
 
-napi_value create_typedarray(napi_env env,void *array,int32_t length){
-    size_t byte_legth = sizeof(int32_t) * length;
-    napi_value arraybuffer;
-    napi_value typedarray = NULL;
-    napi_status status = napi_create_arraybuffer(env,byte_legth,&array,&arraybuffer);
-    napi_status statu2 = napi_create_typedarray(env,napi_float64_array,length,arraybuffer,byte_legth,&typedarray);
+void catchError(napi_env env){
+    napi_extended_error_info *ErrorInfo;
+    napi_get_last_error_info(env,&ErrorInfo);
+    fprintf(stderr,"[ERROR]:%s\n",ErrorInfo->error_message);
+}
+
+napi_value create_typedarray(napi_env env,void *data,uint32_t length,napi_typedarray_type type){
+    size_t byte_legth;//in
+
+    switch (type){
+    case napi_float64_array:
+        /* code */
+        byte_legth = sizeof(double_t) * length;
+        break;
+    case napi_int32_array:
+        byte_legth = sizeof(int32_t) * length;
+        break;
+    default:
+        fprintf(stderr,"[ERROR]:There is no such type\n");
+        exit(1);
+        break;
+    }
+
+    napi_value arraybuffer;//out
+    napi_value typedarray;
+
+    napi_status status_arraybuffer = napi_create_external_arraybuffer(env,data,byte_legth,NULL,NULL,&arraybuffer);
+    napi_status status_typedarray = napi_create_typedarray(env,type,length,arraybuffer,0,&typedarray);
+    if(status_typedarray != napi_ok || status_arraybuffer != napi_ok){
+        fprintf(stderr,"[ERROR]:Cannot create typedarray || arraybuffer\n");
+        catchError(env);
+        exit(1);
+    }
     return typedarray;
 }
 
@@ -29,7 +57,8 @@ awl get_node_array(napi_env env,napi_value argv,bool return_length){
     napi_status typedarray_status = napi_get_typedarray_info(env,input_array,&type,&length,NULL,&input_buffer,&offest);
     napi_status buffer_status = napi_get_arraybuffer_info(env,input_buffer,&data,&byte_length);
     if(buffer_status != napi_ok  || typedarray_status != napi_ok){
-        fprintf(stderr,"[ERROR]:cannot get buffer_info && typedarray_info\n");
+        fprintf(stderr,"[ERROR]:Cannot get buffer_info || typedarray_info\n");
+        exit(1);
     }
     awl node_Array;
     node_Array.data = data;
@@ -70,16 +99,27 @@ Tensor *get_node_tensors(napi_env env,napi_value argv){
 napi_value push_node_tensor(napi_env env,Tensor *tensor,napi_value constructor){
     napi_value tensor_obj;
     size_t con_argc = 1;
-    napi_value con_argv;
-    napi_status array_status =  napi_create_array(env,&con_argv);
-    for(int32_t i = 0;i < tensor->size;i++){
-        napi_value data;
-        napi_create_double(env,tensor->data[i],&data);
-        napi_set_element(env,con_argv,i,data);
+
+    napi_value init_tensor;
+    napi_status status_obj = napi_create_object(env,&init_tensor);
+    if(status_obj != napi_ok){
+        fprintf(stderr,"[ERROR]:Cannot create obj\n");
+        exit(1);
     }
-    napi_status instance_status = napi_new_instance(env,constructor,con_argc,&con_argv,&tensor_obj);
-    if(array_status != napi_ok || instance_status != napi_ok){
+
+    napi_value data = create_typedarray(env,(void *)tensor->data,tensor->size,napi_float64_array);
+    napi_value shape = create_typedarray(env,(void *)tensor->shape,tensor->dimension,napi_int32_array);
+    napi_status set_data = napi_set_named_property(env,init_tensor,"data",data);
+    napi_status set_shape = napi_set_named_property(env,init_tensor,"shape",shape);
+    if(set_data != napi_ok||set_shape != napi_ok){
+        fprintf(stderr,"[ERROR]:Cannot set data || shape\n");
+        exit(1);
+    }
+
+    napi_status instance_status = napi_new_instance(env,constructor,con_argc,&init_tensor,&tensor_obj);
+    if(instance_status != napi_ok){
         fprintf(stderr,"[ERROR]:Cannot new instance\n");
+        exit(1);
     }
     return tensor_obj;
 }
@@ -90,6 +130,7 @@ napi_value T_add(napi_env env,napi_callback_info info){
     napi_status cb_status = napi_get_cb_info(env,info,&argc,argv,NULL,NULL);
     if(cb_status != napi_ok){
         fprintf(stderr,"[ERROR]:Cannot get the info\n");
+        exit(1);
     }
     if(argv != NULL){
         Tensor *tensor_one = get_node_tensors(env,argv[0]);//对象1
@@ -114,12 +155,12 @@ napi_value T_min(napi_env env,napi_callback_info info){
     if(argv != NULL){
         Tensor *tensor_one = get_node_tensors(env,argv[0]);//对象
 
-        int32_t *axis = 0;
+        int32_t axis[1];
         napi_get_value_int32(env,argv[1],axis);//轴
         bool keepdims;
         napi_get_value_bool(env,argv[2],&keepdims);//保持维度
 
-        Tensor *new_tensor = tensor_min(tensor_one,*axis,keepdims);
+        Tensor *new_tensor = tensor_min(tensor_one,axis[0],keepdims);
         napi_value tensor_obj =  push_node_tensor(env,new_tensor,argv[3]);
 
         delete_tensor(tensor_one);
@@ -138,12 +179,15 @@ napi_value T_max(napi_env env,napi_callback_info info){
     if(argv != NULL){
         Tensor *tensor_one = get_node_tensors(env,argv[0]);//对象
 
-        int32_t *axis = 0;
-        napi_get_value_int32(env,argv[1],axis);//轴
+        int32_t axis[1];
+        napi_status axis_status = napi_get_value_int32(env,argv[1],axis);//轴
         bool keepdims;
-        napi_get_value_bool(env,argv[2],&keepdims);//保持维度
-
-        Tensor *new_tensor = tensor_max(tensor_one,*axis,keepdims);
+        napi_status bool_status = napi_get_value_bool(env,argv[2],&keepdims);//保持维度
+        if(axis_status != napi_ok||bool_status != napi_ok){
+            fprintf(stderr,"[ERROR]:Cannot get the bool || aixs\n");
+            exit(1);
+        }
+        Tensor *new_tensor = tensor_max(tensor_one,axis[0],keepdims);
         napi_value tensor_obj =  push_node_tensor(env,new_tensor,argv[3]);
 
         delete_tensor(tensor_one);
@@ -470,7 +514,7 @@ napi_value ones(napi_env env,napi_callback_info info){
         
         Tensor *new_tensor = ones_like(tensor_one);
 
-        napi_value tensor_obj =  push_node_tensor(env,new_tensor,argv[2]);
+        napi_value tensor_obj =  push_node_tensor(env,new_tensor,argv[1]);
         delete_tensor(tensor_one);
         delete_tensor(new_tensor);
         return tensor_obj;
@@ -489,7 +533,7 @@ napi_value zeros(napi_env env,napi_callback_info info){
         
         Tensor *new_tensor = zeros_like(tensor_one);
 
-        napi_value tensor_obj =  push_node_tensor(env,new_tensor,argv[2]);
+        napi_value tensor_obj =  push_node_tensor(env,new_tensor,argv[1]);
         delete_tensor(tensor_one);
         delete_tensor(new_tensor);
         return tensor_obj;
@@ -546,9 +590,9 @@ napi_value transpose(napi_env env,napi_callback_info info){
 
         awl new_axis = get_node_array(env,argv[1],true);
         
-        Tensor *new_tensor = tensor_reshape(tensor_one,(int32_t *)new_axis.data,new_axis.length);
+        Tensor *new_tensor = tensor_axes_transpose(tensor_one,(int32_t *)new_axis.data,new_axis.length);
 
-        napi_value tensor_obj =  push_node_tensor(env,new_tensor,argv[4]);
+        napi_value tensor_obj =  push_node_tensor(env,new_tensor,argv[2]);
         delete_tensor(tensor_one);
         delete_tensor(new_tensor);
         return tensor_obj;
@@ -576,12 +620,14 @@ napi_value contiguous(napi_env env,napi_callback_info info){
 napi_value node_destory_tensor_pool(napi_env env,napi_callback_info info){
     extern MemoryPool *tensor_pool;
     destory_pool(tensor_pool);
+    // destory_pool(typedarray_info_pool);
     return NULL;
 }
 
 napi_value node_reset_tensor_pool(napi_env env,napi_callback_info info){
     extern MemoryPool *tensor_pool;
     reset_pool(tensor_pool);
+    // reset_pool(typedarray_info_pool);
     return NULL;
 }
 
@@ -589,6 +635,7 @@ napi_value node_create_pool(napi_env env,napi_callback_info info){
     fprintf(stdout,"[TIP]:Using MemoryPool\n");
     extern MemoryPool *tensor_pool;
     tensor_pool = create_pool(sizeof(Tensor),50);
+    // typedarray_info_pool = create_pool(sizeof(typedarray_info),50);
     return NULL;
 }
 
@@ -620,7 +667,7 @@ napi_value Init(napi_env env,napi_value exports){//我知道我这一段写得�
 
     init_function(env,exports,T_mul_T_ele,"mul_elementwise");
 
-    init_function(env,exports,T_add,"add_broadcasted");
+    init_function(env,exports,T_add_broadcasted,"add_broadcasted");
 
     init_function(env,exports,S_mul_T,"mul_scalar");
 
