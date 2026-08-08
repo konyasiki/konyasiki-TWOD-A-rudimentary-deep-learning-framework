@@ -501,13 +501,13 @@ Tensor *tensor_equal(Tensor *tensor_one,Tensor *tensor_two){
         shape[i] = tensor_one->shape[i];
     }
    
-        double_t *data = (double_t *)malloc(tensor_one->size * sizeof(double_t));
-        if (data == NULL){
-            fprintf(stderr,"[ERROR]:Memory allocation failed\n");
-            exit(1);
-        }
-        cpu_tensor_equal(tensor_one,tensor_two,data);
-        return create_tensor(data,shape,ndim);
+    double_t *data = (double_t *)malloc(tensor_one->size * sizeof(double_t));
+    if (data == NULL){
+        fprintf(stderr,"[ERROR]:Memory allocation failed\n");
+        exit(1);
+    }
+    cpu_tensor_equal(tensor_one,tensor_two,data);
+    return create_tensor(data,shape,ndim);
    
 }
 Tensor *tensor_equal_broadcasted(Tensor *tensor_one,Tensor *tensor_two){
@@ -651,7 +651,7 @@ Tensor *tensor_axes_transpose(Tensor *tensor, int32_t *axis,int32_t axis_length)
         fprintf(stderr,"[ERROR]:Memory allocation failed\n");
         exit(1);
     }
-    for(int32_t i = 0;i < tensor->dimension - 1;i++){
+    for(int32_t i = 0;i < tensor->dimension;i++){
         shape_transpose[i] = tensor->shape[axis[i]];//转换后轴的顺序
     }
     int32_t ndim = tensor->dimension;
@@ -659,14 +659,13 @@ Tensor *tensor_axes_transpose(Tensor *tensor, int32_t *axis,int32_t axis_length)
         fprintf(stderr,"[ERROR]:You need to keep the axis length the same as the tensor shape length\n");
         exit(1);
     }
-    
-        double_t *data = (double_t *)malloc(tensor->size * sizeof(double_t));
-        if(data == NULL){
-            fprintf(stderr,"[ERROR]:Memory allocation failed\n");
-            exit(1);
-        }
-        cpu_tensor_transpose_axes(tensor,data,axis,shape_transpose);
-        return create_tensor(data,shape_transpose,ndim);
+    double_t *data = (double_t *)malloc(tensor->size * sizeof(double_t));
+    if(data == NULL){
+        fprintf(stderr,"[ERROR]:Memory allocation failed\n");
+        exit(1);
+    }
+    cpu_tensor_transpose_axes(tensor,data,axis,shape_transpose);
+    return create_tensor(data,shape_transpose,ndim);
     
 }
 void make_contiguous(Tensor *tensor){
@@ -675,18 +674,72 @@ void make_contiguous(Tensor *tensor){
         fprintf(stderr,"[ERROR]:Memory allocation failed\n");
         exit(1);
     }
+    int32_t *new_shape = (int32_t *)malloc(tensor->dimension * sizeof(int32_t));
+
     int32_t stride = 1;
     for(int32_t i = 0;i < tensor->dimension;i++){
+        new_shape[i] = tensor->shape[i];
         new_strides[i] = stride;
         stride *= tensor->shape[i];
     }
-    
-        double_t *data = (double_t *)malloc(tensor->size * sizeof(double_t));
-        if(data == NULL){
-            fprintf(stderr,"[ERROR]:Memory allocation failed\n");
-            exit(1);
+
+    double_t *data = (double_t *)malloc(tensor->size * sizeof(double_t));
+    if(data == NULL){
+        fprintf(stderr,"[ERROR]:Memory allocation failed\n");
+        exit(1);
+    }
+    cpu_tensor_make_contiguous(tensor,data,new_strides);
+}
+Tensor *tensor_sum(Tensor *tensor,int32_t axis,bool keepdims){
+    int32_t ndim;
+    int32_t *shape;
+    if(axis > tensor->dimension - 1){
+        fprintf(stderr,"[ERROR]:axis argument %d must be smaller than tensor dimension %d", axis, tensor->dimension);
+    }
+    if (axis == -1){
+        shape = (int32_t *)malloc(sizeof(int32_t));
+        shape[0] = 1;
+        ndim = 1; 
+    }else{
+        shape = (int32_t *)malloc((tensor->dimension - 1) * sizeof(int32_t));//sum后维度减1
+        for(int32_t i = 0,j = 0;i < tensor->dimension;++i){
+            if(i != axis){//如果i不等于轴的索引
+                shape[j++] = tensor->shape[i];//新的形状则等于后一位
+            }
         }
-        cpu_tensor_make_contiguous(tensor,data,new_strides);
+        ndim = tensor->dimension - 1; 
+    }
+    int32_t axis_size = 1;
+    for(int32_t i = 0; i < ndim;i++){
+        axis_size *= shape[i];//新形状的元素总数
+    }
+
+    double_t *data = (double_t *)calloc(axis_size,sizeof(double_t));
+    if(data == NULL){
+        fprintf(stderr,"[ERROR]:Memory allocation failed\n");
+        exit(1);
+    }
+    cpu_tensor_sum(tensor,data,axis_size,shape,axis);
+    if(keepdims){
+        if(axis == -1){
+                // ndim
+                
+            ndim = tensor->dimension;
+            shape = (int32_t *)malloc(tensor->dimension * sizeof(int32_t));
+            for(int32_t i = 0;i < tensor->dimension;i++){
+                shape[i] = 1;
+            }
+                
+        }else{
+            shape = (int32_t *)malloc(tensor->dimension * sizeof(int32_t));
+            for(int32_t i = 0;i < tensor->dimension;i++){
+                shape[i] = tensor->shape[i];
+            }
+            shape[axis] = 1;
+            ndim = tensor->dimension;
+        }
+    }
+    return create_tensor(data,shape,ndim);
     
 }
 // Tensor *tensor_matmul_batched_broadcasted(Tensor *tensor_one,Tensor *tensor_two){

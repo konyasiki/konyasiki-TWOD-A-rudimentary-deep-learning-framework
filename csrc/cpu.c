@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <node_api.h>
+#include "c_to_node.h"
 
 void cpu_tensor_add(Tensor *tensor_one,Tensor *tensor_two,double_t *data){
     for(int32_t i = 0;i < tensor_one->size;i++){
@@ -317,32 +319,6 @@ void cpu_tensor_make_contiguous(Tensor *tensor,double_t *data,int32_t *new_strid
     tensor->data = data;
     tensor->strides = new_strides;
 }
-// void cpu_tensor_transpose1D(Tensor *tensor,double_t *data){
-//     for(int32_t i = 0;i < tensor->shape[0];i++){
-//         data[i] = tensor->data[i]; 
-//     }
-// }
-// void cpu_tensor_transpose2D(Tensor *tensor,double_t *data){
-//     int rows = tensor->shape[0];
-//     int cols = tensor->shape[1];
-//     for(int i = 0;i < rows;i++){
-//         for(int j = 0;j < cols;j++){
-//             data[j * rows + i] = tensor->data[i * cols + j];
-//         }
-//     } 
-// }
-// void cpu_tensor_transpose3D(Tensor *tensor,double_t *data){
-//     int batch = tensor->data[0];
-//     int rows = tensor->shape[1];
-//     int cols = tensor->shape[2];
-//     for(int i = 0;i < batch;i++){
-//         for(int j = 0;j < rows;j++){
-//             for(int k = 0; k < cols ; k++){
-//                 data[k * rows * batch + j * batch + i] = tensor->data[i * rows * cols + k];
-//             }
-//         }
-//     } 
-// }
 void cpu_tensor_transpose_axes(Tensor *tensor,double_t *data,int32_t *axis,int32_t *shape_transpose){
     int32_t *strides = (int32_t *)malloc(tensor->dimension * sizeof(int32_t));
     if(strides == NULL){
@@ -357,10 +333,11 @@ void cpu_tensor_transpose_axes(Tensor *tensor,double_t *data,int32_t *axis,int32
     for(int32_t i = 0;i < tensor->size;i++){
         int32_t linear_index = i;
         int32_t index = 0;
-        for(int32_t j = tensor->dimension - 1;j >=0 ;i--){
-            int32_t pos = linear_index % tensor->shape[i];
-            linear_index /= tensor->shape[i];
-            index += pos * strides[axis[i]];
+        for(int32_t j = tensor->dimension - 1;j >=0 ;j--){
+            fprintf(stdout,"%d\n",axis[j]);
+            int32_t pos = linear_index % tensor->shape[j];//
+            linear_index /= tensor->shape[j];//每个维度对应走几步
+            index += pos * strides[axis[j]];
         }
         data[index] = tensor->data[i];
     }
