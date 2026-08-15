@@ -99,7 +99,7 @@ export default class Tensor{
         if(typeof parameter_two == "number"){
             return tensor_c.mul_scalar(parameter_one,parameter_two,Tensor);
         }else{
-            return tensor_c.mul_elementwise(parameter_one,parameter_one,Tensor);
+            return tensor_c.mul_elementwise(parameter_one,parameter_two,Tensor);
         }
     }
     static Matrix_mul(tensor_one:Tensor,tensor_two:Tensor){
