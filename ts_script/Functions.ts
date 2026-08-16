@@ -1,21 +1,22 @@
-import TD from "./TD.ts";
+import {TwoD} from "./TwoD.ts";
 import Tensor from "./tensor.ts";
+import assert, { Assert } from "assert";
 export abstract class Functions{
     constructor(){
 
     }
-    call(input:TD){
+    call(input:TwoD){
         this.input = input;
-        let output = new TD(this.forward(input.data));
+        let output = new TwoD(this.forward(input.data));
         output.setCreator(this);
         this.output = output;
         return output;
     }
     abstract forward(tensor:Tensor):Tensor
 
-    input!:TD
+    input!:TwoD
 
-    output!:TD
+    output!:TwoD
 
     abstract backward(grad:Tensor):Tensor
 }
@@ -36,18 +37,12 @@ export class Exp extends Functions{
         return Tensor.mul(Tensor.pow(Math.E,this.input.data),grad);
     }
 }
-let test = new TD([0.5]);
-let aF = new Square();
-let bF = new Exp();
-let cF = new Square();
-let a = aF.call(test);
-
-let b = bF.call(a);
-
-let c = cF.call(b);
-
-c.grad = new Tensor([1]);
-b.grad = cF.backward(c.grad);
-a.grad = bF.backward(b.grad);
-test.grad = aF.backward(a.grad);
+let S1 = new Square();
+let S2 = new Square();
+let E = new Exp();
+let test = new TwoD([0.5]);
+let a = S1.call(test);
+let b = E.call(a);
+let c = S2.call(b);
+c.backward();
 console.log(test.grad);
