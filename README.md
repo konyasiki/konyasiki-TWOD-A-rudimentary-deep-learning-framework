@@ -1,13 +1,22 @@
 # TWOD-A-rudimentary-deep-learning-framework
 If you think it's written well, give it some stars.
 🤭
-## How to initialize a tensor?
+## How to initialize?
 ```ts
-let tensor = new Tensor([[1.0,2.0],[0.3,3.0]]);//The default data type is Float64Array
-//or
-let data = new Float64Array([[1.0,2.0],[0.3,3.0]]);
-let shape = new Int32Array([2,2]);
-let tensor = new Tensor({data:data,shape:shape});//Highly not recommended ⚠
+let td = new TwoD([[1.0,2.0],[0.3,3.0]]);//The default data type is Float64Array
+```
+## backward
+```ts
+let a = new TwoD([1]);
+let b = new TwoD([2]);
+let c = add(a,b);
+c.backward();
+
+//c.backward(false);
+//You can use this option to keep the gradients of the intermediate values.
+
+//Config. enable_backward
+//This option is used to disable backpropagation
 ```
 #### tip:
 You can call 👇 before initializing the tensor.This way you can use a memory pool to avoid allocating memory frequently.
