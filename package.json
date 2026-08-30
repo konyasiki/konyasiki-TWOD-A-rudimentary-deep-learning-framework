@@ -1,6 +1,29 @@
 {
-    "name": "tensor_c",
-    "main": "./tensor.js",
-    "types": "../@types/tensor_c/index.d.ts",
-    "version": "^0.0.1"
+  "name": "twod",
+  "version": "1.0.0",
+  "description": "a deeplearning framework",
+  "main": "twod.ts",
+  "scripts": {
+    "gc_test":"node --expose-gc ./ts_script/test/test.js",
+    "test": "node ./ts_script/test/test.ts",
+    "test_functions": "node --inspect ./ts_script/basic_config/Functions.ts",
+    "test_twod": "node --inspect ./ts_script/TwoD.ts",
+    "test_tensor": "node --inspect ./ts_script/basic_config/tensor.ts",
+    "gc_functions": "node --expose-gc ./ts_script/basic_config/Functions.ts",
+    "gc_twod": "node --expose-gc ./ts_script/TwoD.ts",
+    "gc_tensor": "node --expose-gc ./ts_script/basic_config/tensor.ts",
+    "twod": "node ./ts_script/TwoD.ts",
+    "tensor": "node ./ts_script/basic_config/tensor.ts",
+    "functions": "node ./ts_script/basic_config/Functions.ts"
+  },
+  "author": "爱吉-yasiki",
+  "license": "ISC",
+  "dependencies": {
+    "0x": "^6.0.0",
+    "node-gyp": "^12.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2"
+  },
+  "type": "module"
 }
