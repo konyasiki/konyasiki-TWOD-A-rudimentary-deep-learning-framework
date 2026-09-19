@@ -5,6 +5,7 @@
 #include <math.h>
 #include <node_api.h>
 #include "c_to_node.h"
+#include <stdarg.h>
 
 void cpu_tensor_add(Tensor *tensor_one,Tensor *tensor_two,double_t *data){
     for(int32_t i = 0;i < tensor_one->size;i++){
@@ -115,34 +116,6 @@ void cpu_tensor_matmul(Tensor *tensor_one,Tensor *tensor_two,double_t *data){
                 sum += tensor_one->data[i * tensor_one->shape[1] + k] * tensor_two->data[tensor_two->shape[1] + j];
             }
             data[i * tensor_two->shape[1] + j] = sum;
-        }
-    }
-}
-void cpu_tensor_broadcasted_batched_matmul(Tensor *tensor_one,Tensor *tensor_two,double_t *data){
-    int32_t data_stride = tensor_one->shape[0] * tensor_two->shape[2];
-    for(int32_t batch = 0;batch < tensor_two->shape[0];batch++){
-        for(int32_t i = 0;i < tensor_two->shape[0];i++){
-            for(int32_t j = 0;j < tensor_two->shape[2];j++){
-                double_t sum = 0.0;
-                for(int32_t k = 0;k < tensor_one->shape[1];k++){
-                    sum += tensor_one->data[i * tensor_one->shape[1] + k] * tensor_two->data[batch * tensor_two->strides[0] + (k * tensor_two->shape[2] + j)];
-                }
-                data[(batch * data_stride) + (i * tensor_two->shape[2] + j)] = sum;
-            }
-        }
-    }
-}
-void cpu_tensor_matmul_batched(Tensor *tensor_one,Tensor *tensor_two,double_t *data){
-    int32_t data_stride = tensor_one->shape[1] * tensor_two->shape[2];
-    for(int32_t batch = 0;batch < tensor_two->shape[0];batch++){
-        for(int32_t i = 0;i < tensor_one->shape[1];i++){
-            for(int32_t j = 0;j <tensor_two->shape[2];j++){
-                double_t sum = 0.0;
-                for(int32_t k = 0;k <tensor_one->shape[2];k++){
-                    sum += tensor_one->data[(batch * tensor_one->strides[0]) + i * tensor_one->shape[2] + k] * tensor_two->data[batch * tensor_two->strides[0] + (k * tensor_two->shape[2] + j)];
-                }
-                data[(batch * data_stride) + (i * tensor_two->shape[2] + j)] = sum;
-            }
         }
     }
 }
@@ -346,5 +319,54 @@ void cpu_tensor_transpose_axes(Tensor *tensor,double_t *data,int32_t *axis,int32
 void cpu_tensor_assign(Tensor *tensor,double_t *data){//复制张量
     for(int32_t i = 0;i < tensor->size;i++){
         data[i] = tensor->data[i];
+    }
+}
+void cpu_tensor_dot(Tensor *tensor_one,Tensor *tensor_two,double_t *data){
+    int32_t size = 1;
+    for (int32_t i = 0; i < tensor_one->dimension; i++){
+        size *= i == tensor_one->dimension - 1 ? tensor_two->shape[i] : tensor_one->shape[i];
+    }
+    for (int32_t i = 0; i < size; i++){
+        for (int32_t j = 0; j < tensor_one->shape[tensor_one->dimension - 1]; j++){
+            data[i] += tensor_one->data[j + i / tensor_one->shape[tensor_one->dimension - 1]] * tensor_two->data[i % tensor_one->shape[tensor_one->dimension - 1] + j * tensor_two->shape[tensor_one->dimension - 1]];
+        }
+    }
+    
+}
+void cpu_tensor_slice(Tensor *tensor,int32_t num,Tensor **tensorList,int32_t axe){
+    int32_t axe_shape = 1;
+    if(tensor->shape[axe] % num == 0 || tensor->size % num == 0)
+        axe_shape = tensor->shape[axe] / num;
+    else{
+        fprintf(stderr,"[ERROR]:The current shape or size can't be divided evenly");
+        exit(1);
+    }
+    for (int32_t i = 0; i < num; i++){  
+        int32_t *shape = malloc(sizeof(int32_t) * tensor->dimension);
+        for (int32_t j = 0; j < tensor->dimension; j++){
+            shape[j] = j == axe ? tensor->shape[j] / num : tensor->shape[j];
+        }
+        
+        double_t *data = malloc(sizeof(double_t) * tensor->size / num);
+        tensorList[i] = create_tensor(data,shape,tensor->dimension);
+    }
+    for (int32_t i = 0; i <= axe; i++){
+        axe_shape *= tensorList[0]->shape[i];
+    }
+    for (int32_t i = 0; i < tensor->size; i++){
+        int32_t index = i / axe_shape;
+        tensorList[index % num]->data[i / (axe_shape * num) * axe_shape + i % axe_shape] = tensor->data[i];
+    }
+    
+}
+void cpu_tensor_contract(int32_t num,int32_t axe,Tensor **tensorList,double_t *data){
+    int32_t size;
+    int32_t axe_shape = 1;
+    for (int32_t i = 0; i <= axe; i++){
+        axe_shape *= tensorList[0]->shape[i];
+    }
+    for (int32_t i = 0; i < size; i++){
+        int32_t index = i / axe_shape;
+        data[i] = tensorList[index % num]->data[i / (axe_shape * num) * axe_shape + i % axe_shape];
     }
 }

@@ -1,9 +1,9 @@
-#include "tensor.h"
-#include "node_api.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include "MemoryPool.h"
 #include <string.h>
+#include "tensor.h"
+#include "node_api.h"
+#include "MemoryPool.h"
 
 typedef struct array_with_length{
     void *data;
@@ -78,8 +78,12 @@ Tensor *get_node_tensors(napi_env env,napi_value argv){
     napi_status proper_data = napi_get_named_property(env,argv,"data",&Typed_data);
     napi_value shape;
     napi_status proper_shape = napi_get_named_property(env,argv,"shape",&shape);
-    if(proper_data != napi_ok || proper_shape != napi_ok){
-        fprintf(stderr,"[ERROR]:Cannot get the property\n");
+    if(proper_shape != napi_ok){
+        fprintf(stderr,"[ERROR]:Cannot get the shape property\n");
+        exit(1);
+    }
+    if(proper_data != napi_ok){
+        fprintf(stderr,"[ERROR]:Cannot get the data property\n");
         exit(1);
     }
     //Array
@@ -119,6 +123,7 @@ napi_value push_node_tensor(napi_env env,Tensor *tensor,napi_value constructor){
     napi_status instance_status = napi_new_instance(env,constructor,con_argc,&init_tensor,&tensor_obj);
     if(instance_status != napi_ok){
         fprintf(stderr,"[ERROR]:Cannot new instance\n");
+        catchError(env);
         exit(1);
     }
     return tensor_obj;
@@ -132,7 +137,7 @@ napi_value T_add(napi_env env,napi_callback_info info){
         fprintf(stderr,"[ERROR]:Cannot get the info\n");
         exit(1);
     }
-    if(argv != NULL){
+    if(argv != NULL){;
         Tensor *tensor_one = get_node_tensors(env,argv[0]);//对象1
         Tensor *tensor_two = get_node_tensors(env,argv[1]);//对象2
         Tensor *new_tensor = tensor_add(tensor_one,tensor_two);
@@ -267,8 +272,26 @@ napi_value T_mul_T_ele(napi_env env,napi_callback_info info){
     if(argv != NULL){
         Tensor *tensor_one = get_node_tensors(env,argv[0]);//对象1
         Tensor *tensor_two = get_node_tensors(env,argv[1]);//对象2
-    
         Tensor *new_tensor = tensor_mul_elementwise(tensor_one,tensor_two);
+        napi_value tensor_obj =  push_node_tensor(env,new_tensor,argv[2]);
+        delete_tensor(tensor_one);
+        delete_tensor(tensor_two);
+        delete_tensor(new_tensor);
+        return tensor_obj;
+    }else{
+        fprintf(stderr,"[ERROR]:Missing parameter\n");
+        exit(1);
+    }
+}
+
+napi_value dot(napi_env env,napi_callback_info info){
+    size_t argc = 3;
+    napi_value argv[3];
+    napi_get_cb_info(env,info,&argc,argv,NULL,NULL);
+    if(argv != NULL){
+        Tensor *tensor_one = get_node_tensors(env,argv[0]);//对象1
+        Tensor *tensor_two = get_node_tensors(env,argv[1]);//对象2
+        Tensor *new_tensor = tensor_dot(tensor_one,tensor_two);
         napi_value tensor_obj =  push_node_tensor(env,new_tensor,argv[2]);
         delete_tensor(tensor_one);
         delete_tensor(tensor_two);
@@ -465,8 +488,8 @@ napi_value ln(napi_env env,napi_callback_info info){
 }
 
 napi_value equal(napi_env env,napi_callback_info info){
-    size_t argc = 2;
-    napi_value argv[2];
+    size_t argc = 3;
+    napi_value argv[3];
     napi_get_cb_info(env,info,&argc,argv,NULL,NULL);
     if(argv != NULL){
         Tensor *tensor_one = get_node_tensors(env,argv[0]);//对象1
@@ -582,17 +605,15 @@ napi_value coss(napi_env env,napi_callback_info info){
 }
 
 napi_value transpose(napi_env env,napi_callback_info info){
-    size_t argc = 4;
-    napi_value argv[4];
+    size_t argc = 3;
+    napi_value argv[3];
     napi_get_cb_info(env,info,&argc,argv,NULL,NULL);
     if(argv != NULL){
         Tensor *tensor_one = get_node_tensors(env,argv[0]);//对象1
-
         awl new_axis = get_node_array(env,argv[1],true);
-        
         Tensor *new_tensor = tensor_axes_transpose(tensor_one,(int32_t *)new_axis.data,new_axis.length);
-
         napi_value tensor_obj =  push_node_tensor(env,new_tensor,argv[2]);
+
         delete_tensor(tensor_one);
         delete_tensor(new_tensor);
         return tensor_obj;
@@ -608,7 +629,6 @@ napi_value contiguous(napi_env env,napi_callback_info info){
     napi_get_cb_info(env,info,&argc,argv,NULL,NULL);
     if(argv != NULL){
         Tensor *tensor_one = get_node_tensors(env,argv[0]);//对象1
-        
         make_contiguous(tensor_one);
         return NULL;
     }else{
@@ -620,22 +640,92 @@ napi_value contiguous(napi_env env,napi_callback_info info){
 napi_value node_destory_tensor_pool(napi_env env,napi_callback_info info){
     extern MemoryPool *tensor_pool;
     destory_pool(tensor_pool);
-    // destory_pool(typedarray_info_pool);
     return NULL;
 }
 
 napi_value node_reset_tensor_pool(napi_env env,napi_callback_info info){
     extern MemoryPool *tensor_pool;
     reset_pool(tensor_pool);
-    // reset_pool(typedarray_info_pool);
     return NULL;
+}
+
+napi_value T_sum(napi_env env,napi_callback_info info){
+    size_t argc = 4;
+    napi_value argv[4];
+    napi_get_cb_info(env,info,&argc,argv,NULL,NULL);
+    if(argv != NULL){
+        Tensor *tensor_one = get_node_tensors(env,argv[0]);//对象
+
+        int32_t axis;
+        napi_status axis_status = napi_get_value_int32(env,argv[1],&axis);//轴
+        bool keepdims;
+        napi_status bool_status = napi_get_value_bool(env,argv[2],&keepdims);//保持维度
+        if(axis_status != napi_ok||bool_status != napi_ok){
+            fprintf(stderr,"[ERROR]:Cannot get the bool || axe\n");
+            exit(1);
+        }
+        Tensor *new_tensor = tensor_sum(tensor_one,axis,keepdims);
+        napi_value tensor_obj =  push_node_tensor(env,new_tensor,argv[3]);
+
+        delete_tensor(tensor_one);
+        delete_tensor(new_tensor);
+        return tensor_obj;
+    }else{
+        fprintf(stderr,"[ERROR]:Missing parameter\n");
+        exit(1);
+    }
+}
+
+
+napi_value slice(napi_env env,napi_callback_info info){
+    size_t argc = 4;
+    napi_value argv[4];
+    napi_get_cb_info(env,info,&argc,argv,NULL,NULL);
+    if(argv != NULL){
+        Tensor *tensor_one = get_node_tensors(env,argv[0]);//对象
+
+        int32_t axe;
+        napi_status axe_status = napi_get_value_int32(env,argv[1],&axe);//轴
+        int32_t num;
+        napi_status num_status = napi_get_value_int32(env,argv[2],&num);//数量
+        // bool keepdims;
+        // napi_status bool_status = napi_get_value_bool(env,argv[2],&keepdims);//保持维度
+        // if(axis_status != napi_ok||bool_status != napi_ok){
+        //     fprintf(stderr,"[ERROR]:Cannot get the bool || aixs\n");
+        //     exit(1);
+        // }
+        if(axe_status != napi_ok || num_status != napi_ok){
+            fprintf(stderr,"[ERROR]:Cannot get the axe of num\n");
+            exit(1);
+        }
+        Tensor **new_tensor = tensor_slice(tensor_one,num,axe);
+        napi_value tensor_list;
+        napi_status napi_array = napi_create_array(env,&tensor_list);
+        if(napi_array != napi_ok){
+            fprintf(stderr,"[ERROR]:Cannot create array\n");
+            exit(1);
+        }
+        for(int32_t i = 0; i < num; i++){
+            napi_value tensor_obj =  push_node_tensor(env,new_tensor[i],argv[3]);
+            delete_tensor(new_tensor[i]);
+            napi_status napi_set_ele = napi_set_element(env,tensor_list,i,tensor_obj);
+            if(napi_set_ele != napi_ok){
+                fprintf(stdout,"[ERROR]:Cannot set element\n");
+            }
+        }
+        delete_tensor(tensor_one);
+        free(new_tensor);
+        return tensor_list;
+    }else{
+        fprintf(stderr,"[ERROR]:Missing parameter\n");
+        exit(1);
+    }
 }
 
 napi_value node_create_pool(napi_env env,napi_callback_info info){
     fprintf(stdout,"[TIP]:Using MemoryPool\n");
     extern MemoryPool *tensor_pool;
     tensor_pool = create_pool(sizeof(Tensor),50);
-    // typedarray_info_pool = create_pool(sizeof(typedarray_info),50);
     return NULL;
 }
 
@@ -644,8 +734,6 @@ void init_function(napi_env env,napi_value exports,napi_callback cfuntion,char *
     napi_create_function(env, NULL, 0,cfuntion,NULL, &function);
     napi_set_named_property(env,exports,function_name,function);
 }
-
-
 
 napi_value Init(napi_env env,napi_value exports){//我知道我这一段写得很屎但我没招了
 
@@ -702,6 +790,12 @@ napi_value Init(napi_env env,napi_value exports){//我知道我这一段写得�
     init_function(env,exports,contiguous,"make_contiguous");
 
     init_function(env,exports,node_create_pool,"create_pool");
+
+    init_function(env,exports,T_sum,"sum");
+
+    init_function(env,exports,dot,"dot");
+
+    init_function(env,exports,slice,"slice");
     return exports;
 }
 

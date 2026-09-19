@@ -52,16 +52,19 @@ void cpu_tensor_transpose2D(Tensor *tensor,double_t *data);//
 
 void cpu_tensor_transpose3D(Tensor *tensor,double_t *data);//
 
-void cpu_tensor_transpose_axes(Tensor *tensor,double_t *data,int *axis,int *shape_transpose);//
+void cpu_tensor_transpose_axes(Tensor *tensor,double_t *data,int32_t *axis,int32_t *shape_transpose);//
 
 void cpu_tensor_assign(Tensor *tensor,double_t *data);
 //复制张量使用同一地址
 
-void cpu_tensor_make_contiguous(Tensor *tensor,double_t *data,int *new_strides);
+void cpu_tensor_make_contiguous(Tensor *tensor,double_t *data,int32_t *new_strides);
 //复制一份但是不储存在同一地址
 
 void cpu_tensor_sin(Tensor *tensor,double_t *data);//
 
 void cpu_tensor_cos(Tensor *tensor,double_t *data);//
 
+void cpu_tensor_dot(Tensor *tensor_one,Tensor *tensor_two,double_t *data);
+
+void cpu_tensor_slice(Tensor *tensor,int32_t num,Tensor **tensorList,int32_t axe);
 #endif
