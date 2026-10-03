@@ -1,6 +1,5 @@
 # TWOD-A-rudimentary-deep-learning-framework
-If you think it's written well, give it some stars.
-🤭
+# Heads up! The node modules on the C side in the October 3rd update still have some minor bugs, so please refer to the code before October 3rd. I’ll fix it as soon as possible.
 ## How to initialize?
 ```ts
 let td = new TwoD([[1.0,2.0],[0.3,3.0]]);//The default data type is Float64Array
