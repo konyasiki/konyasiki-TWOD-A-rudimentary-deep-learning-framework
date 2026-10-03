@@ -7,9 +7,16 @@
     "noEmit": true,
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "module": "nodenext",
+    "module":"nodenext",
+    // "paths": {
+    //   "tensorC":["./ts_script/tensor_c/index.ts"]
+    // },
     "target": "esnext",
-    "types": ["node","tensor_c"],
+    "types": ["node"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "typeRoots": ["./node_modules/@types/","ts_script/tensor_c/types"],
+    "skipDefaultLibCheck": true,
     // For nodejs:
     // "lib": ["esnext"],
     // "types": ["node"],
@@ -19,7 +26,7 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-
+    
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -43,5 +50,9 @@
     "esModuleInterop":true,
     "allowSyntheticDefaultImports":true,
     "allowImportingTsExtensions":true,
-  }
+    "paths":{
+      "tensor_c":["../tensor_c/index.ts"]
+    }
+  },
+  "include":["./ts_script/tensor_c/"]
 }
