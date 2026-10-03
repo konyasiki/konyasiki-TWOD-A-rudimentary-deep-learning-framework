@@ -2,15 +2,29 @@
 #define C_TO_NODE_H
 
 #include <node_api.h>
-#include <tensor.h>
+#include "tensor.h"
+typedef struct array_with_length{
+    void *data;
+    size_t length;
+}awl;
 
-napi_value create_typedarray(napi_env env,void *array,int length);
+void catchError(napi_env env);
 
-void *get_node_array(napi_env env,napi_value argv);
+napi_value create_typedarray(napi_env env,
+                            void *data,
+                            uint32_t length,
+                            napi_typedarray_type type);
 
-Tensor *get_node_tensors(napi_env env,napi_value argv);
+awl get_node_array(napi_env env,
+                            napi_value argv,
+                            bool return_length);
 
-napi_value push_node_tensor(napi_env env,Tensor *tensor,napi_value constructor);
+Tensor *get_node_tensors(napi_env env,
+                        napi_value argv);
+
+napi_value push_node_tensor(napi_env env,
+                            Tensor *tensor,
+                            napi_value constructor);
 
 napi_value T_add(napi_env env,napi_callback_info info);//Patameter 3 (tensor_one,tensor_two,constructor)
 
@@ -69,4 +83,12 @@ napi_value coss(napi_env env,napi_callback_info info);//Parameter 2 (tensor,cons
 napi_value transpose(napi_env env,napi_callback_info info);//Parameter 4 (obj,axis,constructor)
 
 napi_value contiguous(napi_env env,napi_callback_info info);//Parameter 2 (tensor,constructor)
+
+napi_value T_sum(napi_env env,napi_callback_info info);//Parameter 4 (obj,axis,keepdims,constructor)
+
+void free_c_variable(node_api_basic_env env,void* finalize_data,void* finalize_hint);
+
+napi_value dot(napi_env env,napi_callback_info info);
+
+napi_value slice(napi_env env,napi_callback_info info);
 #endif
